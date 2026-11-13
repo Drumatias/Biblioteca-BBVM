@@ -19,7 +19,7 @@ index.html                    Página principal
 assets/css/estilos.css        Estilos
 assets/js/app.js              Lógica (búsqueda, portada, administración, fondo)
 assets/img/logo-bbvm.png      Logo de la biblioteca (versión blanca)
-assets/img/logo-vina-del-mar.jpg
+assets/img/logo-vina-del-mar.png
 assets/img/fondo/foto-1..8.jpg  Fotos del collage (monocromo)
 data/catalogo-inicial.js      Base de libros que trae el sitio
 .nojekyll                     Indica a GitHub Pages que publique los archivos tal cual
