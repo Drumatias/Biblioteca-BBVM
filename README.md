@@ -69,20 +69,27 @@ La planilla publicada **se guarda solo en ese equipo** (en el navegador). Sigue 
 
 ### Formato de la planilla
 
-La primera fila debe tener los nombres de las columnas. Se reconocen (sin importar tildes ni mayúsculas):
+Se usa la hoja llamada **Catalogo** (si no existe, la primera). La primera fila debe tener los nombres de las columnas; se reconocen sin importar tildes ni mayúsculas:
 
 | Columna | Obligatoria | Ejemplo |
 |---|---|---|
-| TITULO | Sí | Socialismo y Democracia |
-| AUTOR | | Ignacio Walker |
-| DEWEY | | 321.74 |
-| CATEGORIA | | Ensayo |
-| UBICACIÓN | | CAJA Nº1,SALA 506-A |
-| ESTADO | | Disponible |
-| IDENTIFICACION | | BBVM-0001 |
-| AÑO, EDICION, EDITORIAL | | |
+| Titulo | Sí | LOS INNOVADORES |
+| Autor | | WALTER ISAACSON |
+| Dewey | | 004, 863, CH863 |
+| Categoria | | NOVELA |
+| Ubicacion | | LITERATURA 800 |
+| Estado | | DISPONIBLE |
+| Editorial | | DEBATE |
+| Año | | 2014 |
+| Codigo ID Interno | | BBVM, PPVM |
 
-Otras columnas también se muestran en los resultados. En Administración se puede descargar una plantilla de ejemplo.
+- Las columnas vacías a la derecha se ignoran, y cualquier otra columna con nombre se muestra en los resultados.
+- Los textos escritos en mayúsculas se muestran en formato legible ("Historia del Libro en Chile"); la planilla no se modifica.
+- Las filas idénticas se muestran una sola vez, con la cantidad de ejemplares.
+- Las filas sin título no se publican.
+- También se acepta el formato anterior (IDENTIFICACION, TITULO, AUTOR, DEWEY, CATEGORIA, UBICACIÓN, ESTADO…).
+
+En Administración se puede descargar una plantilla de ejemplo.
 
 ## Personalización
 

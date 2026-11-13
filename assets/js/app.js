@@ -9,7 +9,7 @@ const FIELDS=[
  {key:'category',label:'Categoría',aliases:['categoria','categoría','materia','tema']},
  {key:'location',label:'Ubicación',aliases:['ubicacion','ubicación','signatura topografica']},
  {key:'status',label:'Estado',aliases:['estado','disponibilidad']},
- {key:'id',label:'Código',aliases:['identificacion','identificación','codigo','código','id']},
+ {key:'id',label:'Código interno',aliases:['identificacion','identificación','codigo','código','id','codigo id interno','codigo interno','id interno']},
  {key:'year',label:'Año',aliases:['año','ano','anio']},
  {key:'edition',label:'Edición',aliases:['edicion','edición']},
  {key:'publisher',label:'Editorial',aliases:['editorial']},
@@ -28,6 +28,21 @@ const capFirst=s=>s?s.charAt(0).toUpperCase()+s.slice(1):s;
 const fmt=n=>n.toLocaleString('es-CL');
 const PARTS=new Set(['de','del','la','las','los','y','e','van','von','da','di','le']);
 const nameCase=s=>s.split(' ').map((w,i)=>(/^[a-záéíóúñü]/.test(w)&&(i===0||!PARTS.has(w)))?capFirst(w):w).join(' ');
+/* Textos escritos TODO EN MAYÚSCULAS se muestran en formato legible:
+   "HISTORIA DEL LIBRO EN CHILE" → "Historia del Libro en Chile". Solo cambia la vista, no los datos. */
+const MINUS=new Set(['de','del','la','las','el','los','y','e','o','u','en','a','al','con','por','para','sin','un','una','unos','unas','que','se','su','sus','lo','le','les','mi','tu','entre','sobre','tras','desde','hasta','como','van','von']);
+const ROMANO=/^(?=[ivxlcdm]+$)m{0,3}(cm|cd|d?c{0,3})(xc|xl|l?x{0,3})(ix|iv|v?i{0,3})$/;
+const NO_ROMANO=new Set(['di','vi','mi','dc','cc','li','ci','id','mil','dil','lid']);
+function smartCase(s){
+  if(!s||/[a-záéíóúñü]/.test(s)||!/[A-ZÁÉÍÓÚÑÜ]/.test(s))return s;
+  let first=true;
+  return s.toLowerCase().replace(/\p{L}+/gu,w=>{
+    const isFirst=first;first=false;
+    if(w.length>1&&ROMANO.test(w)&&!NO_ROMANO.has(w)&&!MINUS.has(w))return w.toUpperCase();
+    if(!isFirst&&MINUS.has(w))return w;
+    return w.charAt(0).toUpperCase()+w.slice(1);
+  });
+}
 function prettyLoc(s){
   if(!s)return'';
   const p=s.split(/\s*,\s*/).map(x=>x.replace(/^(caja|sala)\b/i,m=>capFirst(m.toLowerCase())).replace(/^(Caja|Sala)\s+n[º°o]\s*/i,(m,a)=>a+' Nº'));
@@ -88,13 +103,14 @@ function ingest(headers,rows,fileName){
   const hdr=headers.map(h=>clean(h));
   const map={}, extras=[], used=new Set();
   hdr.forEach((h,i)=>{
-    const n=norm(h);
-    const f=FIELDS.find(f=>!used.has(f.key)&&f.aliases.map(norm).includes(n));
+    const n=norm(h).replace(/\s+/g,' ');
+    /* Coincidencia exacta del encabezado, o que empiece por un alias ("Codigo ID Interno" → código) */
+    const f=FIELDS.find(f=>!used.has(f.key)&&f.aliases.map(norm).includes(n))||FIELDS.find(f=>!used.has(f.key)&&f.aliases.map(norm).some(a=>n.startsWith(a+' ')));
     if(f){map[f.key]=i;used.add(f.key)} else if(h){extras.push({label:h,idx:i})}
   });
-  const rep={fileName,total:rows.length,blank:0,noTitle:0,dupIds:0,noStatus:0,noDewey:0,recognized:FIELDS.filter(f=>f.key in map).map(f=>f.label),extras:extras.map(e=>e.label),emptyCols:[],errors:[]};
+  const rep={fileName,total:rows.length,blank:0,noTitle:0,dupIds:0,grouped:0,noStatus:0,noDewey:0,recognized:FIELDS.filter(f=>f.key in map).map(f=>f.label),extras:extras.map(e=>e.label),emptyCols:[],errors:[]};
   if(!('title' in map)){rep.errors.push('No encontramos la columna «Título». Revisa que la primera fila tenga los nombres de las columnas.');return{records:[],report:rep}}
-  const seen=new Set(), records=[];
+  const seen=new Set(), groups=new Map(), records=[];
   rows.forEach(r=>{
     const cells=hdr.map((_,i)=>clean(r[i]));
     if(cells.every(c=>!c)){rep.blank++;return}
@@ -103,23 +119,32 @@ function ingest(headers,rows,fileName){
     extras.forEach(e=>{if(cells[e.idx])rec.extra.push([e.label,cells[e.idx]])});
     if(!rec.title){rep.noTitle++;return}
     if(rec.id){if(seen.has(rec.id))rep.dupIds++;seen.add(rec.id)}
+    /* Filas idénticas = ejemplares del mismo libro: se muestran una vez */
+    const key=FIELDS.map(f=>norm(rec[f.key])).join('|')+'|'+norm(rec.extra.map(x=>x.join(':')).join('|'));
+    if(groups.has(key)){groups.get(key).copies++;rep.grouped++;return}
+    rec.copies=1;groups.set(key,rec);
     if(!rec.status)rep.noStatus++;
     if(!rec.dewey)rep.noDewey++;
     rec.dewey=padDewey(rec.dewey);
-    rec.titleD=capFirst(rec.title);
-    rec.authorD=nameCase(rec.author);
-    rec.locD=prettyLoc(rec.location);
+    rec.titleD=capFirst(smartCase(rec.title));
+    rec.authorD=nameCase(smartCase(rec.author));
+    rec.locD=prettyLoc(smartCase(rec.location));
+    rec.categoryD=smartCase(rec.category);
+    rec.statusD=capFirst(smartCase(rec.status));
+    rec.publisherD=smartCase(rec.publisher);
     rec.n={};FIELDS.forEach(f=>rec.n[f.key]=norm(f.key==='location'?rec.location+' '+rec.locD:rec[f.key]));
     rec.n.all=Object.values(rec.n).join(' | ')+' '+norm(rec.extra.map(x=>x[1]).join(' '));
     records.push(rec);
   });
   rep.emptyCols=FIELDS.filter(f=>f.key in map&&records.length&&records.every(r=>!r[f.key])).map(f=>f.label);
   rep.kept=records.length;
+  /* Si el código se repite en casi todas las filas, es un código de colección (BBVM, PPVM…), no un identificador único */
+  if(seen.size<records.length*0.5)rep.dupIds=0;
   return{records,report:rep,raw:{headers,rows}};
 }
 /* La base publicada desde Administración se guarda en este equipo (navegador).
    Si no hay una guardada, se usa la base inicial del sitio: data/catalogo-inicial.js */
-const STORE_KEY='bbvm-catalogo-v1';
+const STORE_KEY='bbvm-catalogo-v2';
 function loadStored(){try{const s=JSON.parse(localStorage.getItem(STORE_KEY)||'null');if(s&&s.headers&&s.rows)return s}catch(e){}return null}
 function saveStored(o){try{localStorage.setItem(STORE_KEY,JSON.stringify(o));return true}catch(e){return false}}
 function clearStored(){try{localStorage.removeItem(STORE_KEY)}catch(e){}}
@@ -284,14 +309,17 @@ function hitHTML(r,v){
   const author=r.authorD?`<button class="linkish" type="button" data-q="${esc(r.authorD)}" title="Ver más libros de este autor">${hl(r.authorD,v)}</button>`:`<span class="no">Autor no registrado</span>`;
   const meta=[];
   if(r.locD)meta.push(`<span class="where">${PIN}<span><span class="sr">Ubicación: </span>${hl(r.locD,v)}</span></span>`);
-  if(r.category)meta.push(`<button class="linkish" type="button" data-q="${esc(r.category)}" title="Ver más libros de esta categoría">${hl(r.category,v)}</button>`);
-  [['year','Año'],['edition','Edición'],['publisher','Editorial']].forEach(([f,l])=>{if(r[f])meta.push(`<span>${l} ${hl(r[f],v)}</span>`)});
+  if(r.category&&norm(r.category)!==norm(r.location))meta.push(`<button class="linkish" type="button" data-q="${esc(r.categoryD)}" title="Ver más libros de esta categoría">${hl(r.categoryD,v)}</button>`);
+  if(r.publisher)meta.push(`<span>${hl(r.publisherD,v)}</span>`);
+  if(r.year)meta.push(`<span>${hl(r.year,v)}</span>`);
+  if(r.edition)meta.push(`<span>Edición ${hl(r.edition,v)}</span>`);
+  if(r.copies>1)meta.push(`<span>${r.copies} ejemplares</span>`);
   r.extra.forEach(([l,x])=>meta.push(`<span>${esc(l)}: ${esc(x)}</span>`));
-  if(r.id)meta.push(`<span class="code">Código ${hl(r.id,v)}</span>`);
+  if(r.id)meta.push(`<span class="code"><span class="sr">Código </span>${hl(r.id,v)}</span>`);
   return `<li class="hit">
     <div class="hit-head">
       <h2 class="t">${hl(r.titleD,v)}${dew}</h2>
-      <span class="status ${k}">${ICON[k]}${esc(r.status||'Sin estado')}</span>
+      <span class="status ${k}">${ICON[k]}${esc(r.statusD||'Sin estado')}</span>
     </div>
     <p class="by">${author}</p>
     <div class="meta">${meta.join('')}</div>
@@ -353,7 +381,10 @@ function handleFile(f){
       WB=XLSX.read(ev.target.result,{type:'array'});
       $('#sheet').innerHTML=WB.SheetNames.map(n=>`<option>${esc(n)}</option>`).join('');
       $('#sheetpick').hidden=WB.SheetNames.length<2;
-      readSheet(WB.SheetNames[0]);
+      /* Si existe una hoja llamada «Catálogo», se usa esa; si no, la primera */
+      const pref=WB.SheetNames.find(n=>norm(n).replace(/\s+/g,'')==='catalogo')||WB.SheetNames[0];
+      $('#sheet').value=pref;
+      readSheet(pref);
     }catch(err){
       PENDING={records:[],report:{fileName:f.name,total:0,errors:['No pudimos leer este archivo. Comprueba que sea una planilla Excel o CSV válida.']}};showReview();
     }
@@ -368,6 +399,7 @@ function showReview(){
   r.errors.forEach(m=>notes.push(['e',m]));
   if(r.noTitle)notes.push(['w',`${fmt(r.noTitle)} filas no tienen título y no se publicarán.`]);
   if(r.dupIds)notes.push(['w',`${fmt(r.dupIds)} códigos de identificación están repetidos. Se publican igual, pero conviene corregirlos.`]);
+  if(r.grouped)notes.push(['i',`${fmt(r.grouped)} filas repetidas se agruparon como ejemplares del mismo libro.`]);
   if(r.noStatus)notes.push(['i',`${fmt(r.noStatus)} libros no tienen estado y aparecerán como «Sin estado».`]);
   if(r.noDewey)notes.push(['i',`${fmt(r.noDewey)} libros no tienen código Dewey.`]);
   if(r.emptyCols&&r.emptyCols.length)notes.push(['i',`Las columnas ${r.emptyCols.map(c=>'«'+c+'»').join(', ')} están vacías y no se mostrarán.`]);
@@ -402,7 +434,7 @@ $('#restore').onclick=()=>{
 $('#dl-seed').onclick=downloadSeed;
 $('#tpl').onclick=()=>{
   if(typeof XLSX==='undefined'){toast('No se pudo cargar el lector de Excel. Revisa la conexión a internet.');return}
-  const ws=XLSX.utils.aoa_to_sheet([['IDENTIFICACION','TITULO','AUTOR','DEWEY','CATEGORIA','UBICACIÓN','ESTADO','AÑO','EDICION','EDITORIAL'],['BBVM-0001','Título del libro','Nombre del autor','320.9','Ensayo','CAJA Nº1,SALA 506-A','Disponible','','','']]);
+  const ws=XLSX.utils.aoa_to_sheet([['Codigo ID Interno','Titulo','Autor','Dewey','Categoria','Ubicacion','Estado','Editorial','Año'],['BBVM','TÍTULO DEL LIBRO','NOMBRE DEL AUTOR','863','NOVELA','LITERATURA 800','DISPONIBLE','EDITORIAL',2024]]);
   const wb=XLSX.utils.book_new();XLSX.utils.book_append_sheet(wb,ws,'Libros');XLSX.writeFile(wb,'Plantilla_catalogo_BBVM.xlsx');
 };
 

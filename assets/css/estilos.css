@@ -1,4 +1,6 @@
 /* Catálogo Oficial B.B.V.M. — estilos */
+/* Si esta hoja carga, el aviso de archivos faltantes se oculta */
+#aviso-archivos{display:none!important}
 :root{
   /* Fondo plano: el gris del logo BBVM (#9D9D9C) llevado a un tono más profundo para que el texto blanco sea legible */
   --bg:#575756; --logo-grey:#9D9D9C;
