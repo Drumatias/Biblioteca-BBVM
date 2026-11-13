@@ -1,0 +1,104 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Catálogo Oficial B.B.V.M.</title>
+<meta name="description" content="Catálogo de consulta de la Biblioteca Benjamín Vicuña Mackenna, Viña del Mar.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Literata:opsz,wght@7..72,400;7..72,600&family=Public+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<link rel="stylesheet" href="assets/css/estilos.css">
+</head>
+<body class="splash">
+<div class="collage" aria-hidden="true"><div class="plane"><div class="block"><div class="tile t1"><img alt="" src="assets/img/fondo/foto-1.jpg"></div><div class="tile t2"><img alt="" src="assets/img/fondo/foto-2.jpg"></div><div class="tile t3"><img alt="" src="assets/img/fondo/foto-3.jpg"></div><div class="tile t4"><img alt="" src="assets/img/fondo/foto-4.jpg"></div><div class="tile t5"><img alt="" src="assets/img/fondo/foto-5.jpg"></div><div class="tile t6"><img alt="" src="assets/img/fondo/foto-6.jpg"></div><div class="tile t7"><img alt="" src="assets/img/fondo/foto-7.jpg"></div><div class="tile t8"><img alt="" src="assets/img/fondo/foto-8.jpg"></div></div></div></div>
+
+<!-- Logos: en la portada van centrados; al comenzar se reducen al 40 % y se ubican en las esquinas -->
+<header class="stage" id="stage">
+  <div class="logos">
+    <div class="logo vina"><img src="assets/img/logo-vina-del-mar.jpg" alt="Municipalidad de Viña del Mar"></div>
+    <button class="logo bbvm" id="home" type="button" tabindex="-1" aria-label="Volver a la pantalla de inicio">
+      <img src="assets/img/logo-bbvm.png" alt="Biblioteca Benjamín Vicuña Mackenna">
+    </button>
+  </div>
+  <button class="invite" id="invite" type="button">Busca el libro que quieras, click en cualquier parte para comenzar</button>
+</header>
+
+<!-- CONSULTA (visitantes) -->
+<main id="view-search" class="view">
+  <div class="searchwrap">
+    <div class="bar-outer">
+      <form class="bar" id="bar" role="search" autocomplete="off">
+        <svg class="mag" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" aria-hidden="true"><circle cx="10.5" cy="10.5" r="6.5"/><path d="M15.5 15.5L20 20"/></svg>
+        <label class="sr" for="q">Buscar un libro</label>
+        <input id="q" type="search" placeholder="Título, autor, tema o código Dewey" enterkeyhint="search"
+               role="combobox" aria-autocomplete="list" aria-expanded="false" aria-controls="suggest">
+        <button class="x" id="clear" type="button" aria-label="Borrar búsqueda" hidden>
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18"/></svg>
+        </button>
+        <button class="go" id="go" type="button">Buscar</button>
+      </form>
+      <ul class="suggest" id="suggest" role="listbox" aria-label="Sugerencias" hidden></ul>
+    </div>
+  </div>
+  <p class="hint" id="hint"></p>
+  <section class="results" id="results" aria-label="Resultados"></section>
+  <div class="sr" id="live" role="status" aria-live="polite"></div>
+</main>
+
+<!-- ADMINISTRACIÓN (carga de la base, separada de la consulta) -->
+<main id="view-admin" class="view">
+  <div class="adminwrap">
+    <button class="back" id="back" type="button"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 6l-6 6 6 6"/></svg>Volver al catálogo</button>
+    <h1>Cargar base de datos</h1>
+    <p class="lead">Sube la planilla Excel con los libros. La consulta pública no cambia hasta que confirmes la publicación.</p>
+    <section class="panel" aria-labelledby="h-cur">
+      <h2 id="h-cur">Base publicada actualmente</h2>
+      <div class="current">
+        <div id="cur-info"></div>
+        <div class="actions">
+          <button class="btn" id="dl-seed" type="button">Descargar base para el sitio</button>
+          <button class="btn" id="tpl" type="button">Descargar plantilla de ejemplo</button>
+          <button class="btn quiet" id="restore" type="button" hidden>Volver a la base inicial</button>
+        </div>
+      </div>
+    </section>
+    <section class="panel" aria-labelledby="h-up">
+      <h2 id="h-up">Nueva planilla</h2>
+      <label class="drop" id="drop">
+        <input type="file" id="file" accept=".xlsx,.xls,.csv">
+        <svg width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 16V4"/><path d="M7 9l5-5 5 5"/><path d="M4 16v3a1 1 0 0 0 1 1h14a1 1 0 0 0 1-1v-3"/></svg>
+        <strong>Arrastra el archivo aquí o haz clic para elegirlo</strong>
+        <span>Formatos .xlsx, .xls o .csv. La primera fila debe tener los nombres de las columnas.</span>
+      </label>
+      <div id="sheetpick" hidden style="margin-top:12px">
+        <label>Hoja a usar <select id="sheet" style="border:1px solid var(--paper-line);border-radius:8px;padding:8px;background:var(--paper)"></select></label>
+      </div>
+    </section>
+    <section class="panel" id="review" aria-labelledby="h-rev" hidden>
+      <h2 id="h-rev">Revisión antes de publicar</h2>
+      <div class="stats" id="stats"></div>
+      <ul class="notes" id="notes"></ul>
+      <h3>Columnas detectadas</h3>
+      <ul class="cols" id="cols"></ul>
+      <h3>Vista previa de las primeras filas</h3>
+      <div class="tablewrap"><table id="preview"></table></div>
+      <div class="actions">
+        <button class="btn primary" id="publish" type="button">Publicar y reemplazar catálogo</button>
+        <button class="btn quiet" id="cancel" type="button">Descartar</button>
+      </div>
+    </section>
+  </div>
+</main>
+
+<footer class="foot">
+  <span>Catálogo Oficial B.B.V.M.</span>
+  <button id="foot-link" class="footbtn" type="button" hidden>Volver al catálogo</button>
+</footer>
+<div class="toast" id="toast" hidden role="status"></div>
+
+<script src="data/catalogo-inicial.js"></script>
+<script src="assets/js/app.js"></script>
+</body>
+</html>
